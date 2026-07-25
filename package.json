@@ -1,0 +1,42 @@
+{
+  "name": "nether-dev",
+  "version": "1.0.1",
+  "description": "Frictionless local dev proxy for mobile testing",
+  "main": "bin/index.js",
+  "type": "module",
+  "bin": {
+    "nether": "./bin/index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "http-proxy": "^1.18.1",
+    "picocolors": "^1.1.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "keywords": [
+    "proxy",
+    "localhost",
+    "mobile-testing",
+    "dev-server",
+    "vite",
+    "nextjs",
+    "nether"
+  ],
+  "author": "Sparsh Gupta",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/barryspacezero/nether-dev.git"
+  },
+  "bugs": {
+    "url": "https://github.com/barryspacezero/nether-dev/issues"
+  },
+  "homepage": "https://github.com/barryspacezero/nether-dev#readme",
+  "license": "MIT"
+}
