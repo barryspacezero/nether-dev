@@ -1,6 +1,6 @@
 {
   "name": "nether-dev",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Frictionless local dev proxy for mobile testing",
   "main": "bin/index.js",
   "type": "module",
