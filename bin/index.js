@@ -36,6 +36,7 @@ program
   .option('-f, --frontend <port>', 'Frontend port (e.g. 3000, 5173)')
   .option('-b, --backend <port>', 'Backend port (e.g. 5000, 8000)')
   .option('-p, --port <port>', 'Proxy port to run on', 8081)
+  .option('-g, --global', 'Generate a public Cloudflare tunnel URL')
   .action(async (options) => {
     let frontend = options.frontend ? parseInt(options.frontend, 10) : null;
     let backend = options.backend ? parseInt(options.backend, 10) : null;
@@ -67,7 +68,8 @@ program
     startServer({
       frontend,
       backend,
-      port: parseInt(options.port, 10)
+      port: parseInt(options.port, 10),
+      global: options.global
     });
   });
 

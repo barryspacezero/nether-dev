@@ -5,7 +5,8 @@ import pc from 'picocolors';
 import { getLocalIpAddress } from './ipUtils.js';
 
 export function startServer(options) {
-  const { frontend, backend, port, apiRoute } = options;
+  const { frontend, backend, port, apiRoute, global } = options;
+  let globalUrl = null;
 
   const proxy = httpProxy.createProxyServer({ changeOrigin: true, ws: true });
 
@@ -64,21 +65,61 @@ export function startServer(options) {
           (function() {
             console.log('⚡ Nether Runtime Request Rewriter active: Intercepting API requests to localhost:${backend}');
             
-            const PROXY_URL = 'http://${localIp}:${actualPort}/__nether__';
-            const BACKEND_REGEX = /(http|ws):\\/\\/(localhost|127\\.0\\.0\\.1):${backend}/g;
+            const PROXY_URL = '${globalUrl ? globalUrl : `http://${localIp}:${actualPort}`}/__nether__';
+            const BACKEND_REGEX = new RegExp('(http|ws):\\\\/\\\\/[^:/]+:' + ${backend}, 'g');
 
             // Monkey-patch fetch
             const originalFetch = window.fetch;
             window.fetch = async function(...args) {
+              let originalUrl = args[0] instanceof Request ? args[0].url : args[0];
+              let isRewritten = false;
+              
               if (typeof args[0] === 'string') {
-                args[0] = args[0].replace(BACKEND_REGEX, PROXY_URL);
+                const newUrl = args[0].replace(BACKEND_REGEX, PROXY_URL);
+                if (newUrl !== args[0]) {
+                  args[0] = newUrl;
+                  isRewritten = true;
+                }
               } else if (args[0] instanceof Request) {
                 const newUrl = args[0].url.replace(BACKEND_REGEX, PROXY_URL);
                 if (newUrl !== args[0].url) {
                   args[0] = new Request(newUrl, args[0]);
+                  isRewritten = true;
                 }
               }
-              return originalFetch.apply(this, args);
+              
+              let finalUrl = args[0] instanceof Request ? args[0].url : args[0];
+              if (isRewritten) {
+                console.log('⚡ [Nether] Rewrote fetch:', originalUrl, '->', finalUrl);
+              }
+              
+              try {
+                return await originalFetch.apply(this, args);
+              } catch (err) {
+                // Automated Proxy Rerouting: If the fetch failed with a network error (like CORS or Connection Refused)
+                // and we haven't already rewritten it, it indicates a hardcoded production URL or LAN IP.
+                // We intercept the network failure and tunnel it through the Nether proxy as a fallback mechanism.
+                if (!isRewritten && err.name === 'TypeError' && err.message === 'Failed to fetch') {
+                  try {
+                    const urlObj = new URL(originalUrl, window.location.origin);
+                    const fallbackUrl = PROXY_URL + urlObj.pathname + urlObj.search;
+                    
+                    console.warn('⚡ [Nether] Fetch failed (CORS/Network policy):', originalUrl);
+                    console.log('⚡ [Nether] Automated Proxy Rerouting ->', fallbackUrl);
+                    
+                    if (args[0] instanceof Request) {
+                      args[0] = new Request(fallbackUrl, args[0]);
+                    } else {
+                      args[0] = fallbackUrl;
+                    }
+                    
+                    return await originalFetch.apply(this, args);
+                  } catch (fallbackErr) {
+                    throw err; // throw original if fallback fails
+                  }
+                }
+                throw err;
+              }
             };
 
             // Monkey-patch XMLHttpRequest
@@ -142,6 +183,14 @@ export function startServer(options) {
     
     console.log(pc.yellow(`[PROXY] ${req.method} ${req.url} -> port ${targetPort}`));
     
+    // Strip headers that Cloudflare injects to prevent Next.js CSRF errors
+    delete req.headers['x-forwarded-host'];
+    delete req.headers['x-forwarded-proto'];
+    delete req.headers['x-forwarded-for'];
+    delete req.headers['cf-connecting-ip'];
+    delete req.headers['cf-ray'];
+    delete req.headers['cf-visitor'];
+
     // Trick Next.js/Vite into thinking the request is coming from localhost
     req.headers.host = `localhost:${targetPort}`;
     req.headers.origin = `http://localhost:${targetPort}`;
@@ -180,10 +229,19 @@ export function startServer(options) {
       }
     });
 
-    server.listen(currentPort, '0.0.0.0', () => {
+    server.listen(currentPort, '0.0.0.0', async () => {
       const actualPort = server.address().port;
       const localIp = getLocalIpAddress();
-      const proxyUrl = `http://${localIp}:${actualPort}`;
+      let proxyUrl = `http://${localIp}:${actualPort}`;
+
+      if (global) {
+        console.log(pc.cyan('Spinning up global Cloudflare tunnel...'));
+        const { startTunnel } = await import('untun');
+        const tunnel = await startTunnel({ port: actualPort });
+        globalUrl = await tunnel.getURL();
+        proxyUrl = globalUrl;
+        console.log(pc.green(`✓ Global tunnel established`));
+      }
 
       console.log(pc.cyan('\n ⚡ NETHER - Frictionless Dev Proxy \n'));
       console.log(`Frontend Route:  * -> http://localhost:${frontend}`);

@@ -105,13 +105,9 @@ Any time your frontend tries to make an API call to `localhost`, Nether seamless
 
 ## Why not ngrok?
 
-Ngrok exposes your app to the internet.
-
-Nether recreates your `localhost` development environment on devices connected to your local network.
-
-- No account.
-- No tunnels.
-- No application changes.
+Ngrok is fantastic, but we built Nether because:
+1. **Zero Setup**: You don't need to create an account, log in, or configure auth tokens just to test on your phone.
+2. **Speed**: Traffic stays entirely on your local network unless you explicitly use the `--global` flag.
 
 ---
 
@@ -140,6 +136,18 @@ You can also change the port the proxy itself runs on (default is 8081):
 ```bash
 nether --port 8080
 ```
+
+### Global Internet Access
+
+Need to test your app on a device not connected to your Wi-Fi? Or share your local server with a client across the globe?
+
+Just pass the `--global` (or `-g`) flag. 
+
+```bash
+nether --global
+```
+
+Nether will automatically provision a secure, public Cloudflare HTTPS tunnel under the hood and print a global URL and QR code. No ngrok account, auth tokens, or configuration required!
 
 ## License
 
