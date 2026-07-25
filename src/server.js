@@ -133,27 +133,27 @@ export function startServer(options) {
 
             // Monkey-patch WebSocket
             if (window.WebSocket) {
-              const OriginalWebSocket = window.WebSocket;
-              window.WebSocket = function(url, protocols) {
-                if (typeof url === 'string') {
-                  const WS_PROXY_URL = PROXY_URL.replace(/^http/, 'ws');
-                  url = url.replace(BACKEND_REGEX, WS_PROXY_URL);
+              window.WebSocket = new Proxy(window.WebSocket, {
+                construct(target, args) {
+                  if (typeof args[0] === 'string') {
+                    const WS_PROXY_URL = PROXY_URL.replace(/^http/, 'ws');
+                    args[0] = args[0].replace(BACKEND_REGEX, WS_PROXY_URL);
+                  }
+                  return new target(...args);
                 }
-                return new OriginalWebSocket(url, protocols);
-              };
-              window.WebSocket.prototype = OriginalWebSocket.prototype;
+              });
             }
 
             // Monkey-patch EventSource
             if (window.EventSource) {
-              const OriginalEventSource = window.EventSource;
-              window.EventSource = function(url, configuration) {
-                if (typeof url === 'string') {
-                  url = url.replace(BACKEND_REGEX, PROXY_URL);
+              window.EventSource = new Proxy(window.EventSource, {
+                construct(target, args) {
+                  if (typeof args[0] === 'string') {
+                    args[0] = args[0].replace(BACKEND_REGEX, PROXY_URL);
+                  }
+                  return new target(...args);
                 }
-                return new OriginalEventSource(url, configuration);
-              };
-              window.EventSource.prototype = OriginalEventSource.prototype;
+              });
             }
 
             // Monkey-patch DOM Attributes (catches React/Vue dynamic src/href injections)
@@ -165,32 +165,54 @@ export function startServer(options) {
               return originalSetAttribute.call(this, name, value);
             };
 
-            // Monkey-patch Image constructor via prototype (catches img.src = "...")
-            if (window.HTMLImageElement) {
-              const originalSrcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
-              if (originalSrcDesc && originalSrcDesc.set) {
-                Object.defineProperty(HTMLImageElement.prototype, 'src', {
-                  get: originalSrcDesc.get,
-                  set: function(val) {
-                    if (typeof val === 'string') {
-                      val = val.replace(BACKEND_REGEX, PROXY_URL);
+            // Monkey-patch Element properties (catches el.src = "..." for all resources)
+            const elementsWithSrc = [
+              'HTMLImageElement', 'HTMLScriptElement', 'HTMLMediaElement',
+              'HTMLIFrameElement', 'HTMLSourceElement', 'HTMLEmbedElement', 'HTMLTrackElement'
+            ];
+            elementsWithSrc.forEach(name => {
+              if (window[name]) {
+                const desc = Object.getOwnPropertyDescriptor(window[name].prototype, 'src');
+                if (desc && desc.set) {
+                  Object.defineProperty(window[name].prototype, 'src', {
+                    get: desc.get,
+                    set: function(val) {
+                      if (typeof val === 'string') val = val.replace(BACKEND_REGEX, PROXY_URL);
+                      return desc.set.call(this, val);
                     }
-                    return originalSrcDesc.set.call(this, val);
-                  }
-                });
+                  });
+                }
               }
-            }
+            });
+
+            const elementsWithHref = [
+              'HTMLLinkElement', 'HTMLAnchorElement', 'HTMLAreaElement', 'HTMLBaseElement'
+            ];
+            elementsWithHref.forEach(name => {
+              if (window[name]) {
+                const desc = Object.getOwnPropertyDescriptor(window[name].prototype, 'href');
+                if (desc && desc.set) {
+                  Object.defineProperty(window[name].prototype, 'href', {
+                    get: desc.get,
+                    set: function(val) {
+                      if (typeof val === 'string') val = val.replace(BACKEND_REGEX, PROXY_URL);
+                      return desc.set.call(this, val);
+                    }
+                  });
+                }
+              }
+            });
 
             // Monkey-patch Web Workers
             if (window.Worker) {
-              const OriginalWorker = window.Worker;
-              window.Worker = function(url, options) {
-                if (typeof url === 'string') {
-                  url = url.replace(BACKEND_REGEX, PROXY_URL);
+              window.Worker = new Proxy(window.Worker, {
+                construct(target, args) {
+                  if (typeof args[0] === 'string') {
+                    args[0] = args[0].replace(BACKEND_REGEX, PROXY_URL);
+                  }
+                  return new target(...args);
                 }
-                return new OriginalWorker(url, options);
-              };
-              window.Worker.prototype = OriginalWorker.prototype;
+              });
             }
           })();
         </script>`;
