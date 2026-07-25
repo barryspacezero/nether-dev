@@ -243,7 +243,13 @@ export function startServer(options) {
         console.log(pc.green(`✓ Global tunnel established`));
       }
 
-      console.log(pc.cyan('\n ⚡ NETHER - Frictionless Dev Proxy \n'));
+      console.clear();
+      console.log(pc.magenta(pc.bold('\n    _   ________________  ____________ ')));
+      console.log(pc.magenta(pc.bold('   / | / / ____/_  __/ / / / ____/ __ \\')));
+      console.log(pc.magenta(pc.bold('  /  |/ / __/   / / / /_/ / __/ / /_/ /')));
+      console.log(pc.magenta(pc.bold(' / /|  / /___  / / / __  / /___/ _, _/ ')));
+      console.log(pc.magenta(pc.bold('/_/ |_/_____/ /_/ /_/ /_/_____/_/ |_|  \n')));
+      console.log(pc.cyan('      Frictionless Dev Proxy\n'));
       console.log(`Frontend Route:  * -> http://localhost:${frontend}`);
       if (backend) {
         console.log(`Backend Route:   /__nether__* -> http://localhost:${backend}\n`);
