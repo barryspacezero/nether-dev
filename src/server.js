@@ -155,6 +155,43 @@ export function startServer(options) {
               };
               window.EventSource.prototype = OriginalEventSource.prototype;
             }
+
+            // Monkey-patch DOM Attributes (catches React/Vue dynamic src/href injections)
+            const originalSetAttribute = Element.prototype.setAttribute;
+            Element.prototype.setAttribute = function(name, value) {
+              if (name && (name.toLowerCase() === 'src' || name.toLowerCase() === 'href') && typeof value === 'string') {
+                value = value.replace(BACKEND_REGEX, PROXY_URL);
+              }
+              return originalSetAttribute.call(this, name, value);
+            };
+
+            // Monkey-patch Image constructor via prototype (catches img.src = "...")
+            if (window.HTMLImageElement) {
+              const originalSrcDesc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+              if (originalSrcDesc && originalSrcDesc.set) {
+                Object.defineProperty(HTMLImageElement.prototype, 'src', {
+                  get: originalSrcDesc.get,
+                  set: function(val) {
+                    if (typeof val === 'string') {
+                      val = val.replace(BACKEND_REGEX, PROXY_URL);
+                    }
+                    return originalSrcDesc.set.call(this, val);
+                  }
+                });
+              }
+            }
+
+            // Monkey-patch Web Workers
+            if (window.Worker) {
+              const OriginalWorker = window.Worker;
+              window.Worker = function(url, options) {
+                if (typeof url === 'string') {
+                  url = url.replace(BACKEND_REGEX, PROXY_URL);
+                }
+                return new OriginalWorker(url, options);
+              };
+              window.Worker.prototype = OriginalWorker.prototype;
+            }
           })();
         </script>`;
 
