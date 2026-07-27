@@ -331,7 +331,7 @@ export function startServer(options) {
       }
 
       console.log('Scan the QR code below to open on your phone:\n');
-      qrcode.generate(proxyUrl, { small: true });
+      qrcode.generate(proxyUrl);
 
       console.log('\nPress Ctrl+C to stop');
     });
