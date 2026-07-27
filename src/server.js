@@ -240,7 +240,14 @@ export function startServer(options) {
       req.url = req.url.replace('/__nether__', ''); // Strip prefix before forwarding
     }
     
-    console.log(pc.yellow(`[PROXY] ${req.method} ${req.url} -> port ${targetPort}`));
+    const isStaticAsset = req.url.match(/\.(js|css|woff2?|png|jpe?g|gif|svg|ico|json|map)$/i) || req.url.startsWith('/_next/') || req.url.startsWith('/@') || req.url.includes('__nextjs');
+    if (!isStaticAsset) {
+      if (targetPort === backend) {
+        console.log(pc.cyan(`[API]    ${req.method} ${req.url} -> port ${targetPort}`));
+      } else {
+        console.log(pc.green(`[CLIENT] ${req.method} ${req.url} -> port ${targetPort}`));
+      }
+    }
     
     // Strip headers that Cloudflare injects to prevent Next.js CSRF errors
     delete req.headers['x-forwarded-host'];
